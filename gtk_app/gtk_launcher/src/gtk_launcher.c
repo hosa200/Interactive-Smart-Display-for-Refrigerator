@@ -1,104 +1,87 @@
-// app_launcher_gtk4.c
 #include <gtk/gtk.h>
-#include <stdlib.h>
+#include <stdio.h> // Include stdio.h for sprintf
 
-// Helper function to run external commands
-static void run_command(const char *command) {
-    int ret = system(command);
-    if (ret == -1) {
-        g_printerr("Failed to execute command: %s\n", command);
-    }
+// Structure to pass multiple widgets to the callback function
+typedef struct {
+    GtkWidget *label;
+    int click_count;
+} AppWidgets;
+
+// The callback function for the "clicked" signal of the button
+static void on_button_clicked(GtkWidget *button, gpointer user_data) {
+    AppWidgets *widgets = (AppWidgets *)user_data;
+    widgets->click_count++;
+    
+    // Allocate a buffer large enough for the message
+    char buffer[50]; 
+    sprintf(buffer, "Button clicked %d times!", widgets->click_count);
+    
+    // Update the label's text
+    gtk_label_set_label(GTK_LABEL(widgets->label), buffer);
 }
 
-// Callback: Launch the Todo List app
-static void launch_todo_app(GtkWidget *widget, gpointer data) {
-    run_command("./gtk_todo &");  // Assuming your todo app is in the same folder
-}
-
-// Callback: Launch the default browser
-static void launch_browser(GtkWidget *widget, gpointer data) {
-    run_command("xdg-open https://www.google.com &");
-}
-
-// Callback: Launch text editor (e.g., gedit)
-static void launch_editor(GtkWidget *widget, gpointer data) {
-    run_command("gedit &");
-}
-
-// Callback: Launch terminal
-static void launch_terminal(GtkWidget *widget, gpointer data) {
-    run_command("gnome-terminal &");
-}
-
-// -------------------------------------------------------------
-// GTK App Activate
-// -------------------------------------------------------------
+// The activate function, called when the application starts
 static void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
-    GtkWidget *vbox;
-    GtkWidget *todo_button;
-    GtkWidget *browser_button;
-    GtkWidget *editor_button;
-    GtkWidget *terminal_button;
+    GtkWidget *button;
+    GtkWidget *label;
+    GtkWidget *box;
+    
+    // We need to use a pointer for the widgets structure so it persists
+    // beyond the scope of this function and can be accessed by the callback.
+    AppWidgets *widgets = g_new(AppWidgets, 1);
 
-    // Create main window
+    // Create a new window
     window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(window), "App Launcher");
-    gtk_window_set_default_size(GTK_WINDOW(window), 300, 260);
-    gtk_window_set_margin_top(GTK_WINDOW(window), 15);
-    gtk_window_set_margin_bottom(GTK_WINDOW(window), 15);
-    gtk_window_set_margin_start(GTK_WINDOW(window), 15);
-    gtk_window_set_margin_end(GTK_WINDOW(window), 15);
+    gtk_window_set_title(GTK_WINDOW(window), "GTK4 Button Example");
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
 
-    // Layout
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
-    gtk_window_set_child(GTK_WINDOW(window), vbox);
+    // Create a vertical box to arrange widgets
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_top(box, 20);
+    gtk_widget_set_margin_bottom(box, 20);
+    gtk_widget_set_margin_start(box, 20);
+    gtk_widget_set_margin_end(box, 20);
+    
+    // Set the box as the child of the window
+    gtk_window_set_child(GTK_WINDOW(window), box);
 
-    // Create buttons
-    todo_button     = gtk_button_new_with_label("📝 Open Todo List");
-    browser_button  = gtk_button_new_with_label("🌐 Open Browser");
-    editor_button   = gtk_button_new_with_label("🗒️ Open Text Editor");
-    terminal_button = gtk_button_new_with_label("🖥️ Open Terminal");
+    // Create a label
+    label = gtk_label_new("Click the button below!");
+    
+    // Create a button with a label
+    button = gtk_button_new_with_label("Click Me");
 
-    // Connect signals
-    g_signal_connect(todo_button, "clicked", G_CALLBACK(launch_todo_app), NULL);
-    g_signal_connect(browser_button, "clicked", G_CALLBACK(launch_browser), NULL);
-    g_signal_connect(editor_button, "clicked", G_CALLBACK(launch_editor), NULL);
-    g_signal_connect(terminal_button, "clicked", G_CALLBACK(launch_terminal), NULL);
+    // Connect the "clicked" signal of the button to the callback function
+    // We pass the pointer to the widgets structure as user data
+    widgets->label = label;
+    widgets->click_count = 0;
+    g_signal_connect(button, "clicked", G_CALLBACK(on_button_clicked), widgets);
 
-    // Add buttons to the layout
-    gtk_box_append(GTK_BOX(vbox), todo_button);
-    gtk_box_append(GTK_BOX(vbox), browser_button);
-    gtk_box_append(GTK_BOX(vbox), editor_button);
-    gtk_box_append(GTK_BOX(vbox), terminal_button);
+    // Add label and button to the box
+    gtk_box_append(GTK_BOX(box), label);
+    gtk_box_append(GTK_BOX(box), button);
 
-    // Make all buttons expand evenly
-    gtk_widget_set_hexpand(todo_button, TRUE);
-    gtk_widget_set_hexpand(browser_button, TRUE);
-    gtk_widget_set_hexpand(editor_button, TRUE);
-    gtk_widget_set_hexpand(terminal_button, TRUE);
-
-    gtk_widget_set_vexpand(todo_button, TRUE);
-    gtk_widget_set_vexpand(browser_button, TRUE);
-    gtk_widget_set_vexpand(editor_button, TRUE);
-    gtk_widget_set_vexpand(terminal_button, TRUE);
-
-    // Show the window
+    // Show all widgets
     gtk_window_present(GTK_WINDOW(window));
 }
 
-// -------------------------------------------------------------
-// Main
-// -------------------------------------------------------------
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
     GtkApplication *app;
     int status;
 
-    app = gtk_application_new("org.gtk.launcher", G_APPLICATION_FLAGS_NONE);
+    // Create a new GtkApplication
+    app = gtk_application_new("org.gtk.example", G_APPLICATION_FLAGS_NONE);
+    
+    // Connect the "activate" signal to the activate function
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+    
+    // Run the application
     status = g_application_run(G_APPLICATION(app), argc, argv);
+    
+    // Free the application object
     g_object_unref(app);
-
+    
     return status;
 }
 
